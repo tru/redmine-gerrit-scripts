@@ -30,6 +30,9 @@ IN_REVIEW_STATUS = None
 # the regex we use for findig the issue id
 REDMINE_ISSUE_ID_REGEX = '\#(\d+)'
 
+# which projects to run the script for
+GERRIT_PROJECTS = ["example"]
+
 import optparse
 from subprocess import check_output # TODO: you'll need python 2.7 for this
 import sys
@@ -49,7 +52,7 @@ if __name__ == '__main__':
 
     (options, x) = parser.parse_args(sys.argv)
 
-    if options.project is 'thecube':
+    if options.project not in GERRIT_PROJECTS:
         print "wrong project %s" % options.project
         sys.exit(0)
 
