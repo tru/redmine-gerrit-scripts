@@ -1,0 +1,85 @@
+#!/usr/bin/python2.7
+# -*- coding: utf-8 -*-
+#
+#   Copyright (c) 2008-2011 Tobias Hieta <tobias@hieta.se>
+#
+
+# This is a simple Gerrit hook for updating Redmine with information about what changes
+# are in Gerrit review.
+#
+# It parses the commit messages from Gerrit and looks for a Redmine issue in the style
+# of "#1028".
+#
+# It then adds a informative message to the Redmine issue about the review URL and other
+# data. It can also change the status of the issue to indicate that this issue is now
+# under gerrit review.
+#
+# Script is tested with Redmine 1.2.1 and Gerrit 2.2.1
+
+# set your API key here. You can find it under "My account" in Redmine
+REDMINE_API_KEY = ""
+
+# the hostname or ip number of redmine
+REDMINE_HOST = ""
+
+# if you want the script to update the status of the issue in redmine
+# you'll need to set this to the id number of that status. otherwise set
+# it to None and it won't update the status
+IN_REVIEW_STATUS = None
+
+# the regex we use for findig the issue id
+REDMINE_ISSUE_ID_REGEX = '\#(\d+)'
+
+import optparse
+from subprocess import check_output # TODO: you'll need python 2.7 for this
+import sys
+import re
+import httplib
+import json
+
+if __name__ == '__main__':
+    parser = optparse.OptionParser()
+    parser.add_option('-c', '--change', dest='changeid')
+    parser.add_option('-u', '--change-url', dest='changeurl')
+    parser.add_option('-p', '--project', dest='project')
+    parser.add_option('-b', '--branch', dest='branch')
+    parser.add_option('-s', '--uploader', dest='uploader')
+    parser.add_option('-o', '--commit', dest='commit')
+    parser.add_option('-a', '--patchset', dest='patchset')
+
+    (options, x) = parser.parse_args(sys.argv)
+
+    if options.project is 'thecube':
+        print "wrong project %s" % options.project
+        sys.exit(0)
+
+    commitmsg = check_output(['git','cat-file','-p', options.commit])
+    if not commitmsg or len(commitmsg) < 10:
+        print "no commit msg!"
+        sys.exit(0)
+
+    regex = re.compile(REDMINE_ISSUE_ID_REGEX, re.IGNORECASE)
+    mg = regex.search(commitmsg)
+    redmineid = int(mg.group(1))
+    if not redmineid or redmineid == 0:
+        print "no issue set here"
+        sys.exit(0)
+
+    redminecomment = "Gerrit received patchset '%s' for Issue #%d.\n" % (options.patchset, redmineid)
+    redminecomment += "Uploader: %s\n" % options.uploader
+    redminecomment += "Change-Id: %s\n" % options.changeid
+    redminecomment += "Gerrit URL: %s\n" % options.changeurl
+
+    jsonstruct = {"issue":{}}
+    jsonstruct["issue"]["notes"] = redminecomment
+    if IN_REVIEW_STATUS:
+        jsonstruct["issue"]["status_id"]=IN_REVIEW_STATUS
+
+    jsondata = json.dumps(jsonstruct)
+
+    puturl = "/issues/%d.json" % (redmineid)
+
+    connection = httplib.HTTPSConnection(REDMINE_HOST, 443)
+    connection.request('PUT', puturl, jsondata, {"Content-Type":"application/json", "X-Redmine-API-Key":REDMINE_API_KEY})
+    response = connection.getresponse()
+    sys.exit(0)
