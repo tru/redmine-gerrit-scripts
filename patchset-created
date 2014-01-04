@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 #   Copyright (c) 2008-2011 Tobias Hieta <tobias@hieta.se>
+#   Copyright (c) 2014      Rossen Apostolov <rossen@mochiron.org>
 #
 
 # This is a simple Gerrit hook for updating Redmine with information about what changes
@@ -14,24 +15,23 @@
 # data. It can also change the status of the issue to indicate that this issue is now
 # under gerrit review.
 #
-# Script is tested with Redmine 1.2.1 and Gerrit 2.2.1
+# Script is tested with Redmine 2.4.1 and Gerrit 2.6.1
 
-# set your API key here. You can find it under "My account" in Redmine
-REDMINE_API_KEY = ""
+# set your API key here. You can find it under "My account" in Redmine, i.e. http://redmine.mydomain.com/my/account
+REDMINE_API_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
 # the hostname or ip number of redmine
-REDMINE_HOST = ""
+REDMINE_HOST = "redmine.mydomain.com"
 
 # if you want the script to update the status of the issue in redmine
 # you'll need to set this to the id number of that status. otherwise set
 # it to None and it won't update the status
-IN_REVIEW_STATUS = None
 
 # the regex we use for findig the issue id
 REDMINE_ISSUE_ID_REGEX = '\#(\d+)'
 
 # which projects to run the script for
-GERRIT_PROJECTS = ["example"]
+GERRIT_PROJECTS = ["PROJECT_NAME"]
 
 import optparse
 from subprocess import check_output # TODO: you'll need python 2.7 for this
@@ -49,6 +49,8 @@ if __name__ == '__main__':
     parser.add_option('-s', '--uploader', dest='uploader')
     parser.add_option('-o', '--commit', dest='commit')
     parser.add_option('-a', '--patchset', dest='patchset')
+    parser.add_option('-d', '--is-draft', dest='isdraft')
+    parser.add_option('-t', '--topic', dest='topic')
 
     (options, x) = parser.parse_args(sys.argv)
 
@@ -61,28 +63,49 @@ if __name__ == '__main__':
         print "no commit msg!"
         sys.exit(0)
 
-    regex = re.compile(REDMINE_ISSUE_ID_REGEX, re.IGNORECASE)
-    mg = regex.search(commitmsg)
-    redmineid = int(mg.group(1))
-    if not redmineid or redmineid == 0:
-        print "no issue set here"
+# update status only for the first patchset
+    if int(options.patchset) != 1:
+        print "This is not the first patchset (%s) for this issue (%s), will not update the status" % (options.patchset, options.changeurl)
         sys.exit(0)
 
-    redminecomment = "Gerrit received patchset '%s' for Issue #%d.\n" % (options.patchset, redmineid)
-    redminecomment += "Uploader: %s\n" % options.uploader
-    redminecomment += "Change-Id: %s\n" % options.changeid
-    redminecomment += "Gerrit URL: %s\n" % options.changeurl
+# Don't change the status, only put a note. Otherwise uncomment the lines below.
+    IN_REVIEW_STATUS = None
+# for drafts, change the status to "In Progress"...
+#    if options.isdraft == str("true"):
+#        IN_REVIEW_STATUS = 2
+# ... otherwise change to "Fix Uploaded"
+#    else:
+#        IN_REVIEW_STATUS = 10
 
-    jsonstruct = {"issue":{}}
-    jsonstruct["issue"]["notes"] = redminecomment
-    if IN_REVIEW_STATUS:
-        jsonstruct["issue"]["status_id"]=IN_REVIEW_STATUS
+    regex = re.compile(REDMINE_ISSUE_ID_REGEX, re.IGNORECASE)
+    mgi = regex.finditer(commitmsg)
+    for mg in mgi:
+       redmineid = int(mg.group(1))
+       if not redmineid or redmineid == 0:
+           print "no issue set here"
+           sys.exit(0)
 
-    jsondata = json.dumps(jsonstruct)
+       if options.isdraft == str("true"):
+           redminecomment = "Gerrit received a related DRAFT patchset '%s' for Issue #%d.\n" % (options.patchset, redmineid)
+       else:
+           redminecomment = "Gerrit received a related patchset '%s' for Issue #%d.\n" % (options.patchset, redmineid)
+       redminecomment += "Uploader: %s\n" % options.uploader
+       redminecomment += "Change-Id: %s\n" % options.changeid
+       redminecomment += "Gerrit URL: %s\n" % options.changeurl
 
-    puturl = "/issues/%d.json" % (redmineid)
+       jsonstruct = {"issue":{}}
+       jsonstruct["issue"]["notes"] = redminecomment
+       if IN_REVIEW_STATUS:
+           jsonstruct["issue"]["status_id"]=IN_REVIEW_STATUS
 
-    connection = httplib.HTTPSConnection(REDMINE_HOST, 443)
-    connection.request('PUT', puturl, jsondata, {"Content-Type":"application/json", "X-Redmine-API-Key":REDMINE_API_KEY})
-    response = connection.getresponse()
+       jsondata = json.dumps(jsonstruct)
+
+       puturl = "/issues/%d.json" % (redmineid)
+
+       connection = httplib.HTTPConnection(REDMINE_HOST, 80)
+# Use the following in case your host is using a secure connection
+#       connection = httplib.HTTPSConnection(REDMINE_HOST, 443)
+
+       connection.request('PUT', puturl, jsondata, {"Content-Type":"application/json", "X-Redmine-API-Key":REDMINE_API_KEY})
+       response = connection.getresponse()
     sys.exit(0)
