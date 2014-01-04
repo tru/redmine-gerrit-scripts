@@ -1,5 +1,3 @@
-The repository is forked from tru/redmine-gerrit-scripts.
-
 This is a simple [Gerrit][0] hook for updating [Redmine][1] with information about what changes
 are in Gerrit review.
 
