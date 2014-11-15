@@ -109,10 +109,10 @@ if __name__ == '__main__':
 
        puturl = "/issues/%d.json" % (redmineid)
 
-	   if REDMINE_HOST_USING_SSL:
-			connection = httplib.HTTPSConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
-	   else:
-			connection = httplib.HTTPConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
+       if REDMINE_HOST_USING_SSL:
+           connection = httplib.HTTPSConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
+       else:
+           connection = httplib.HTTPConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
 
        connection.request('PUT', puturl, jsondata, {"Content-Type":"application/json", "X-Redmine-API-Key":REDMINE_API_KEY})
        response = connection.getresponse()
