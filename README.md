@@ -18,6 +18,10 @@ Put the script in the `$GERRIT_HOME/hooks` directory and edit the script to set 
 
 If the name of the script is changed from patchset-created to something else don't forget to update the `[Hooks]` section of the `$GERRIT_HOME/etc/gerrit.config` to include `patchsetCreatedHook =  new_script_name`. For more information see the gerrit hooks [documentation][2].
 
+# Logging
+
+All print statements are appended to the `$GERRIT_HOME/logs/error_log`. 
+
 [0]:http://gerrit.googlecode.com
 [1]:http://redmine.org
 [2]:https://gerrit-review.googlesource.com/Documentation/config-hooks.html
