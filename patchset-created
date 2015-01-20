@@ -20,8 +20,15 @@
 # set your API key here. You can find it under "My account" in Redmine, i.e. http://redmine.mydomain.com/my/account
 REDMINE_API_KEY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
-# the hostname or ip number of redmine
+# the hostname or ip number of redmine, do not include the port number here.
 REDMINE_HOST = "redmine.mydomain.com"
+
+# The port number on which redmine is listening, change this to 443 if the
+# redmine host is using a secure connection 
+REDMINE_HOST_PORT_NUMBER = 80
+
+# Set this to true if the redmine host is using a secure connection (SSL)
+REDMINE_HOST_USING_SSL = False
 
 # if you want the script to update the status of the issue in redmine
 # you'll need to set this to the id number of that status. otherwise set
@@ -102,9 +109,10 @@ if __name__ == '__main__':
 
        puturl = "/issues/%d.json" % (redmineid)
 
-       connection = httplib.HTTPConnection(REDMINE_HOST, 80)
-# Use the following in case your host is using a secure connection
-#       connection = httplib.HTTPSConnection(REDMINE_HOST, 443)
+       if REDMINE_HOST_USING_SSL:
+           connection = httplib.HTTPSConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
+       else:
+           connection = httplib.HTTPConnection(REDMINE_HOST, REDMINE_HOST_PORT_NUMBER)
 
        connection.request('PUT', puturl, jsondata, {"Content-Type":"application/json", "X-Redmine-API-Key":REDMINE_API_KEY})
        response = connection.getresponse()
